@@ -308,7 +308,7 @@ local trim2 = function( s )
         "1", "2", "3", "4", "5", "6", "7", "8", "9", "0",
     }
     local str_tbl = {}
-    for c in s:gmatch"." do for k, v in pairs( t ) do if v == c then table.insert( str_tbl, c ) end end end
+    for c in s:gmatch( "." ) do for k, v in pairs( t ) do if v == c then table.insert( str_tbl, c ) end end end
     return table.concat( str_tbl )
 end
 
