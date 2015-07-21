@@ -1,0 +1,84 @@
+        v1.0: 2015-06-08
+            - creating a ca cert first to sign the servercert
+                - needed to prevent the "zero depth self signed cert error" / thx Night & Kungen
+            - moved ressource file "res1.dll" to "libs/res1.dll"
+            - moved ressource file "res2.dll" to "libs/res2.dll"
+            - dirpicker control: add button to create new folder
+            - improve log_broadcast function for smoother autoscroll
+            - change some log output colors
+            - add new acknowledgements to the about window
+            - some other small code improvements
+
+        v0.9: 2015-05-29
+            - removed "img/icon_task.ico"
+            - removed "img/icon_window.ico"
+            - added "res1.dll" icon ressource file
+            - added "res2.dll" icon ressource file
+            - add tab icons
+            - change style of the "about" window
+            - change openssl command params
+                - generate certs with Elliptic-Curve key (ECDSA) using prime256v1
+            - creating "keyprint.txt" file if keyprint is generated on tab 2
+
+        v0.8: 2015-04-20
+            - create a keyprint.txt file
+            - add a progress bar during the progress
+            - optimized log output
+            - code cleaning
+            - renamed "lib" folder to "libs"
+            - renamed "app_se.config" to "openssl.config"
+            - moved "openssl.config" to "libs/openssl/"
+            - changed method to execute openssl commands
+                - using async process (child process)  to redirect input stream
+            - enable make_cert button only if destination path is given
+            - add "docs" folder
+                - move "LICENSE" from "src" to "docs"
+                - add "CHANGELOG"
+
+        v0.7: 2015-04-18
+            - add openssl config to prevent errors if no openssl installation was found  / thx Kass
+            - add tabs
+            - customize textcolor in log
+
+        v0.6: 2015-04-17
+            - fix some typos
+            - creating cert as temp_* first
+            - increase app width (+40px)
+
+        v0.5: 2015-04-17
+            - fix small bug with path
+
+        v0.4: 2015-04-17
+            - update to OpenSSL to v1.0.2a
+            - using a simpler method to generate the certificate
+                - its required for a successful verification between Hub and Clients
+                - without password
+                - without issuer fields
+                - without subject fields
+                - a similar method is used by FlexHub
+
+        v0.3:
+            - added "Clear" button for issuer fields on tab 2
+            - added "Clear" button for subject fields on tab 2
+            - colorize "Make cert" button green if verify check was successfull
+            - clear filepicker path if certinfos are not parseble
+            - add keyprint field to tab 3
+            - removed tab 1
+
+        v0.2:
+            - bigger size of keyprint field
+            - add "Get" button to get keyprint on tab 1
+            - clear keyprint field on each filepicker event on tab 1
+            - changing some fonttypes (field titles on all tabs)
+            - some typo fixes
+            - using "*.pem" wildcard for fileselector
+                - check if file is parseble
+            - clear all field values in tab 1 if values exists and keyprint from new file is not parseble
+            - clear all field values in tab 3 if values exists and cerinfos from new file are not parseble
+            - reduce app_height to "677px"
+            - update openssl to: v1.0.1j from 15 Oct 2014
+
+        v0.1:
+            - generate keyprint from cert
+            - make cert
+            - show certinfo
