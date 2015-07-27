@@ -6,7 +6,13 @@
         License:        GNU GPLv2
         Environment:    wxLua-2.8.12.3-Lua-5.1.5-MSW-Unicode
 
+        v1.1: 2015-07-28
+        
+            - removing "cacert.pem" and "cakey.pem" auto deletion
+                - the ca file is required for the keyprint verification in new clients
+
         v1.0: 2015-06-08
+        
             - creating a ca cert first to sign the servercert
                 - needed to prevent the "zero depth self signed cert error" / thx Night & Kungen
             - moved ressource file "res1.dll" to "libs/res1.dll"
@@ -18,6 +24,7 @@
             - some other small code improvements
 
         v0.9: 2015-05-29
+        
             - removed "img/icon_task.ico"
             - removed "img/icon_window.ico"
             - added "res1.dll" icon ressource file
@@ -29,6 +36,7 @@
             - creating "keyprint.txt" file if keyprint is generated on tab 2
 
         v0.8: 2015-04-20
+        
             - create a keyprint.txt file
             - add a progress bar during the progress
             - optimized log output
@@ -44,19 +52,23 @@
                 - add "CHANGELOG"
 
         v0.7: 2015-04-18
+        
             - add openssl config to prevent errors if no openssl installation was found  / thx Kaas
             - add tabs
             - customize textcolor in log
 
         v0.6: 2015-04-17
+        
             - fix some typos
             - creating cert as temp_* first
             - increase app width (+40px)
 
         v0.5: 2015-04-17
+        
             - fix small bug with path
 
         v0.4: 2015-04-17
+        
             - update to OpenSSL to v1.0.2a
             - using a simpler method to generate the certificate
                 - its required for a successful verification between Hub and Clients
@@ -66,6 +78,7 @@
                 - a similar method is used by FlexHub
 
         v0.3:
+        
             - added "Clear" button for issuer fields on tab 2
             - added "Clear" button for subject fields on tab 2
             - colorize "Make cert" button green if verify check was successfull
@@ -74,6 +87,7 @@
             - removed tab 1
 
         v0.2:
+        
             - bigger size of keyprint field
             - add "Get" button to get keyprint on tab 1
             - clear keyprint field on each filepicker event on tab 1
@@ -87,11 +101,12 @@
             - update openssl to: v1.0.1j from 15 Oct 2014
 
         v0.1:
+        
             - generate keyprint from cert
             - make cert
             - show certinfo
 
-]]--
+]]
 
 
 -------------------------------------------------------------------------------------------------------------------------------------
@@ -111,7 +126,7 @@ local basexx = require( "basexx" )
 -------------------------------------------------------------------------------------------------------------------------------------
 
 local app_name                 = "Luadch Certmanager"
-local app_version              = "v1.0"
+local app_version              = "v1.1"
 local app_copyright            = "Copyright © by pulsar"
 local app_license              = "License: GPLv2"
 
@@ -308,7 +323,7 @@ local trim2 = function( s )
         "1", "2", "3", "4", "5", "6", "7", "8", "9", "0",
     }
     local str_tbl = {}
-    for c in s:gmatch( "." ) do for k, v in pairs( t ) do if v == c then table.insert( str_tbl, c ) end end end
+    for c in s:gmatch"." do for k, v in pairs( t ) do if v == c then table.insert( str_tbl, c ) end end end
     return table.concat( str_tbl )
 end
 
@@ -331,7 +346,7 @@ local show_certinfo = function( path )
     else
         for k, v in string.gmatch( trim( certinfo_issuer ):gsub( "issuer= /", "" ):gsub( "/", "  " ), "(%S+)=(%S+)" ) do tbl_issuer[ k ] = v end
     end
-    
+
     --// subject
     cmd = lib_path .. 'openssl.exe x509 -noout -in ' .. '"' .. trim( path ) .. '"' .. ' -subject'
     proc = wx.wxProcess.Open( cmd )  --> using wxEXEC_ASYNC
@@ -655,38 +670,48 @@ make_cert:Connect( id_make_cert_button, wx.wxEVT_COMMAND_BUTTON_CLICKED,
                 wx.wxCopyFile( curr_path .. "\\temp_serverkey.pem", dest_path .. "\\serverkey.pem", true )
                 wx.wxSleep( 1 )
 
-                progressDialog:Update( 12, "Copy and rename file: 'temp_keyprint.txt'" )
+                progressDialog:Update( 12, "Copy and rename file: 'temp_cacert.pem'" )
+                log_broadcast( log_window, "Copy file: 'temp_cacert.pem'  to: '"..dest_path.."\\cacert.pem'", "CYAN" )
+                wx.wxCopyFile( curr_path .. "\\temp_cacert.pem", dest_path .. "\\cacert.pem", true )
+                wx.wxSleep( 1 )
+
+                progressDialog:Update( 13, "Copy and rename file: 'temp_cakey.pem'" )
+                log_broadcast( log_window, "Copy file: 'temp_cakey.pem'  to: '"..dest_path.."\\cakey.pem'", "CYAN" )
+                wx.wxCopyFile( curr_path .. "\\temp_cakey.pem", dest_path .. "\\cakey.pem", true )
+                wx.wxSleep( 1 )
+
+                progressDialog:Update( 14, "Copy and rename file: 'temp_keyprint.txt'" )
                 log_broadcast( log_window, "Copy file: 'temp_keyprint.txt'  to: '"..dest_path.."\\keyprint.txt'", "CYAN" )
                 wx.wxCopyFile( curr_path .. "\\temp_keyprint.txt", dest_path .. "\\keyprint.txt", true )
                 wx.wxSleep( 1 )
 
-                progressDialog:Update( 13, "Deleting file: 'temp_servercert.pem'" )
+                progressDialog:Update( 15, "Deleting file: 'temp_servercert.pem'" )
                 log_broadcast( log_window, "Deleting file: '"..curr_path.."\\temp_servercert.pem'", "CYAN" )
                 wx.wxRemoveFile( curr_path .. "\\temp_servercert.pem" )
                 wx.wxSleep( 1 )
 
-                progressDialog:Update( 14, "Deleting file: 'temp_serverkey.pem'" )
+                progressDialog:Update( 16, "Deleting file: 'temp_serverkey.pem'" )
                 log_broadcast( log_window, "Deleting file: '"..curr_path.."\\temp_serverkey.pem'", "CYAN" )
                 wx.wxRemoveFile( curr_path .. "\\temp_serverkey.pem" )
                 wx.wxSleep( 1 )
 
-                progressDialog:Update( 15, "Deleting file: 'temp_keyprint.txt'" )
+                progressDialog:Update( 17, "Deleting file: 'temp_keyprint.txt'" )
                 log_broadcast( log_window, "Deleting file: '"..curr_path.."\\temp_keyprint.txt'", "CYAN" )
                 wx.wxRemoveFile( curr_path .. "\\temp_keyprint.txt" )
                 wx.wxSleep( 1 )
 
-                progressDialog:Update( 16, "Deleting file: 'temp_cakey.pem'" )
+                progressDialog:Update( 18, "Deleting file: 'temp_cakey.pem'" )
                 log_broadcast( log_window, "Deleting file: '"..curr_path.."\\temp_cakey.pem'", "CYAN" )
                 wx.wxRemoveFile( curr_path .. "\\temp_cakey.pem" )
                 wx.wxSleep( 1 )
 
-                progressDialog:Update( 17, "Deleting file: 'temp_cacert.pem'" )
+                progressDialog:Update( 19, "Deleting file: 'temp_cacert.pem'" )
                 log_broadcast( log_window, "Deleting file: '"..curr_path.."\\temp_cacert.pem'", "CYAN" )
                 wx.wxRemoveFile( curr_path .. "\\temp_cacert.pem" )
                 wx.wxSleep( 1 )
             end
 
-            progressDialog:Update( 18, "Done." )
+            progressDialog:Update( 20, "Done." )
             log_broadcast( log_window, "Done.", "WHITE" )
             wx.wxSleep( 2 )
 
