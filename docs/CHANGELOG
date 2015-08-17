@@ -1,3 +1,8 @@
+v1.2: 2015-08-17
+    - using a random generated value for CN
+    - servercert and cacert using the same CN value now
+    - small gui changes
+
 v1.1: 2015-07-28
 
     - removing "cacert.pem" and "cakey.pem" auto deletion

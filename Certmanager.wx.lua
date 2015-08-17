@@ -6,13 +6,18 @@
         License:        GNU GPLv2
         Environment:    wxLua-2.8.12.3-Lua-5.1.5-MSW-Unicode
 
+        v1.2: 2015-08-17
+            - using a random generated value for CN
+            - servercert and cacert using the same CN value now
+            - small gui changes
+
         v1.1: 2015-07-28
-        
+
             - removing "cacert.pem" and "cakey.pem" auto deletion
                 - the ca file is required for the keyprint verification in new clients
 
         v1.0: 2015-06-08
-        
+
             - creating a ca cert first to sign the servercert
                 - needed to prevent the "zero depth self signed cert error" / thx Night & Kungen
             - moved ressource file "res1.dll" to "libs/res1.dll"
@@ -24,7 +29,7 @@
             - some other small code improvements
 
         v0.9: 2015-05-29
-        
+
             - removed "img/icon_task.ico"
             - removed "img/icon_window.ico"
             - added "res1.dll" icon ressource file
@@ -36,7 +41,7 @@
             - creating "keyprint.txt" file if keyprint is generated on tab 2
 
         v0.8: 2015-04-20
-        
+
             - create a keyprint.txt file
             - add a progress bar during the progress
             - optimized log output
@@ -52,23 +57,23 @@
                 - add "CHANGELOG"
 
         v0.7: 2015-04-18
-        
+
             - add openssl config to prevent errors if no openssl installation was found  / thx Kaas
             - add tabs
             - customize textcolor in log
 
         v0.6: 2015-04-17
-        
+
             - fix some typos
             - creating cert as temp_* first
             - increase app width (+40px)
 
         v0.5: 2015-04-17
-        
+
             - fix small bug with path
 
         v0.4: 2015-04-17
-        
+
             - update to OpenSSL to v1.0.2a
             - using a simpler method to generate the certificate
                 - its required for a successful verification between Hub and Clients
@@ -78,7 +83,7 @@
                 - a similar method is used by FlexHub
 
         v0.3:
-        
+
             - added "Clear" button for issuer fields on tab 2
             - added "Clear" button for subject fields on tab 2
             - colorize "Make cert" button green if verify check was successfull
@@ -87,7 +92,7 @@
             - removed tab 1
 
         v0.2:
-        
+
             - bigger size of keyprint field
             - add "Get" button to get keyprint on tab 1
             - clear keyprint field on each filepicker event on tab 1
@@ -101,7 +106,7 @@
             - update openssl to: v1.0.1j from 15 Oct 2014
 
         v0.1:
-        
+
             - generate keyprint from cert
             - make cert
             - show certinfo
@@ -126,7 +131,7 @@ local basexx = require( "basexx" )
 -------------------------------------------------------------------------------------------------------------------------------------
 
 local app_name                 = "Luadch Certmanager"
-local app_version              = "v1.1"
+local app_version              = "v1.2"
 local app_copyright            = "Copyright © by pulsar"
 local app_license              = "License: GPLv2"
 
@@ -390,6 +395,29 @@ local show_certinfo = function( path )
     return tbl_issuer, tbl_subject, tbl_dates, keyp_hex, keyp_base32, err
 end
 
+--// returns a random generated alphanumerical cn for the certs with length = len / based on a function by blastbeat (from luadch's util.lua)
+local generate_cn = function( len )
+    local len = tonumber( len )
+    if not ( type( len ) == "number" ) or ( len < 0 ) or ( len > 1000 ) then len = 20 end
+    local lower = { "a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m",
+                    "n", "o", "p", "q", "r", "s", "t", "u", "v", "w", "x", "y", "z" }
+    local upper = { "A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M",
+                    "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z" }
+    math.randomseed( os.time() )
+    local pwd = ""
+    for i = 1, len do
+        local X = math.random( 0, 9 )
+        if X < 4 then
+            pwd = pwd .. math.random( 0, 9 )
+        elseif ( X >= 4 ) and ( X < 6 ) then
+            pwd = pwd .. upper[ math.random( 1, 25 ) ]
+        else
+            pwd = pwd .. lower[ math.random( 1, 25 ) ]
+        end
+    end
+    return pwd
+end
+
 -------------------------------------------------------------------------------------------------------------------------------------
 --// MENUBAR //----------------------------------------------------------------------------------------------------------------------
 -------------------------------------------------------------------------------------------------------------------------------------
@@ -462,27 +490,27 @@ log_broadcast( log_window, app_name .. " ready.", "ORANGE" )
 local control
 
 --// controls tab 1
-control = wx.wxStaticBox( tab_1, wx.wxID_ANY, "Subject Common Name", wx.wxPoint( 55, 80 ), wx.wxSize( 230, 43 ) )
+control = wx.wxStaticBox( tab_1, wx.wxID_ANY, "Subject Common Name", wx.wxPoint( 55, 80 ), wx.wxSize( 250, 43 ) )
 control:SetFont( cert_font )
-local certinfo_7 = wx.wxTextCtrl( tab_1, wx.wxID_ANY, "", wx.wxPoint( 70, 96 ), wx.wxSize( 200, 20 ), wx.wxTE_READONLY + wx.wxSUNKEN_BORDER + wx.wxTE_CENTRE )
+local certinfo_7 = wx.wxTextCtrl( tab_1, wx.wxID_ANY, "", wx.wxPoint( 70, 96 ), wx.wxSize( 220, 20 ), wx.wxTE_READONLY + wx.wxSUNKEN_BORDER + wx.wxTE_CENTRE )
 certinfo_7:SetBackgroundColour( wx.wxColour( 225, 225, 225 ) )
 certinfo_7:SetForegroundColour( wx.wxRED )
 
-control = wx.wxStaticBox( tab_1, wx.wxID_ANY, "Issuer Common Name", wx.wxPoint( 55, 130 ), wx.wxSize( 230, 43 ) )
+control = wx.wxStaticBox( tab_1, wx.wxID_ANY, "Issuer Common Name", wx.wxPoint( 55, 130 ), wx.wxSize( 250, 43 ) )
 control:SetFont( cert_font )
-local certinfo_1 = wx.wxTextCtrl( tab_1, wx.wxID_ANY, "", wx.wxPoint( 70, 146 ), wx.wxSize( 200, 20 ), wx.wxTE_READONLY + wx.wxSUNKEN_BORDER + wx.wxTE_CENTRE )
+local certinfo_1 = wx.wxTextCtrl( tab_1, wx.wxID_ANY, "", wx.wxPoint( 70, 146 ), wx.wxSize( 220, 20 ), wx.wxTE_READONLY + wx.wxSUNKEN_BORDER + wx.wxTE_CENTRE )
 certinfo_1:SetBackgroundColour( wx.wxColour( 225, 225, 225 ) )
 certinfo_1:SetForegroundColour( wx.wxRED )
 
-control = wx.wxStaticBox( tab_1, wx.wxID_ANY, "Valid from", wx.wxPoint( 502, 80 ), wx.wxSize( 230, 43 ) )
+control = wx.wxStaticBox( tab_1, wx.wxID_ANY, "Valid from", wx.wxPoint( 482, 80 ), wx.wxSize( 250, 43 ) )
 control:SetFont( cert_font )
-local certinfo_2 = wx.wxTextCtrl( tab_1, wx.wxID_ANY, "", wx.wxPoint( 517, 96 ), wx.wxSize( 200, 20 ), wx.wxTE_READONLY + wx.wxSUNKEN_BORDER + wx.wxTE_CENTRE )
+local certinfo_2 = wx.wxTextCtrl( tab_1, wx.wxID_ANY, "", wx.wxPoint( 497, 96 ), wx.wxSize( 220, 20 ), wx.wxTE_READONLY + wx.wxSUNKEN_BORDER + wx.wxTE_CENTRE )
 certinfo_2:SetBackgroundColour( wx.wxColour( 225, 225, 225 ) )
 certinfo_2:SetForegroundColour( wx.wxRED )
 
-control = wx.wxStaticBox( tab_1, wx.wxID_ANY, "Valid until", wx.wxPoint( 502, 130 ), wx.wxSize( 230, 43 ) )
+control = wx.wxStaticBox( tab_1, wx.wxID_ANY, "Valid until", wx.wxPoint( 482, 130 ), wx.wxSize( 250, 43 ) )
 control:SetFont( cert_font )
-local certinfo_3 = wx.wxTextCtrl( tab_1, wx.wxID_ANY, "", wx.wxPoint( 517, 146 ), wx.wxSize( 200, 20 ), wx.wxTE_READONLY + wx.wxSUNKEN_BORDER + wx.wxTE_CENTRE )
+local certinfo_3 = wx.wxTextCtrl( tab_1, wx.wxID_ANY, "", wx.wxPoint( 497, 146 ), wx.wxSize( 220, 20 ), wx.wxTE_READONLY + wx.wxSUNKEN_BORDER + wx.wxTE_CENTRE )
 certinfo_3:SetBackgroundColour( wx.wxColour( 225, 225, 225 ) )
 certinfo_3:SetForegroundColour( wx.wxRED )
 
@@ -522,7 +550,7 @@ dirpicker:Connect( id_dirpicker, wx.wxEVT_COMMAND_DIRPICKER_CHANGED,
     end
 )
 
-make_cert = wx.wxButton( tab_1, id_make_cert_button, "Make cert", wx.wxPoint( 345, 115 ), wx.wxSize( 80, 25 ) )
+make_cert = wx.wxButton( tab_1, id_make_cert_button, "Make cert", wx.wxPoint( 352, 115 ), wx.wxSize( 80, 25 ) )
 make_cert:SetBackgroundColour( wx.wxColour( 200, 200, 200 ) )
 make_cert:Disable()
 make_cert:Connect( id_make_cert_button, wx.wxEVT_COMMAND_BUTTON_CLICKED,
@@ -552,11 +580,12 @@ make_cert:Connect( id_make_cert_button, wx.wxEVT_COMMAND_BUTTON_CLICKED,
         local dest_path = dirpicker:GetPath():gsub( "/", "\\" )
         local curr_path = wx.wxGetCwd()
         local lib_path = '.\\libs\\openssl\\'
+        local rnd_cn = generate_cn( 32 )
 
         local cmd1 = 'openssl ecparam -out temp_cakey.pem -name prime256v1 -genkey'
-        local cmd2 = 'openssl req -config ' .. lib_path .. 'openssl.config -new -x509 -days 3650 -key temp_cakey.pem -out temp_cacert.pem -subj /CN=Luadch-CA_Certificate'
+        local cmd2 = 'openssl req -config ' .. lib_path .. 'openssl.config -new -x509 -days 3650 -key temp_cakey.pem -out temp_cacert.pem -subj /CN=' .. rnd_cn
         local cmd3 = 'openssl ecparam -out temp_serverkey.pem -name prime256v1 -genkey'
-        local cmd4 = 'openssl req -config ' .. lib_path .. 'openssl.config -new -key temp_serverkey.pem -out temp_servercert.pem -subj /CN=Luadch-Certificate'
+        local cmd4 = 'openssl req -config ' .. lib_path .. 'openssl.config -new -key temp_serverkey.pem -out temp_servercert.pem -subj /CN=' .. rnd_cn
         local cmd5 = 'openssl x509 -req -days 3650 -in temp_servercert.pem -CA temp_cacert.pem -CAkey temp_cakey.pem -set_serial 01 -out temp_servercert.pem'
 
         local cmd_1 = lib_path .. cmd1
@@ -733,27 +762,27 @@ make_cert:Connect( id_make_cert_button, wx.wxEVT_COMMAND_BUTTON_CLICKED,
 -------------------------------------------------------------------------------------------------------------------------------------
 
 --// controls tab 2
-control = wx.wxStaticBox( tab_2, wx.wxID_ANY, "Subject Common Name", wx.wxPoint( 55, 80 ), wx.wxSize( 230, 43 ) )
+control = wx.wxStaticBox( tab_2, wx.wxID_ANY, "Subject Common Name", wx.wxPoint( 55, 80 ), wx.wxSize( 250, 43 ) )
 control:SetFont( cert_font )
-local certinfo_8 = wx.wxTextCtrl( tab_2, wx.wxID_ANY, "", wx.wxPoint( 70, 96 ), wx.wxSize( 200, 20 ), wx.wxTE_READONLY + wx.wxSUNKEN_BORDER + wx.wxTE_CENTRE )
+local certinfo_8 = wx.wxTextCtrl( tab_2, wx.wxID_ANY, "", wx.wxPoint( 70, 96 ), wx.wxSize( 220, 20 ), wx.wxTE_READONLY + wx.wxSUNKEN_BORDER + wx.wxTE_CENTRE )
 certinfo_8:SetBackgroundColour( wx.wxColour( 225, 225, 225 ) )
 certinfo_8:SetForegroundColour( wx.wxRED )
 
-control = wx.wxStaticBox( tab_2, wx.wxID_ANY, "Issuer Common Name", wx.wxPoint( 55, 130 ), wx.wxSize( 230, 43 ) )
+control = wx.wxStaticBox( tab_2, wx.wxID_ANY, "Issuer Common Name", wx.wxPoint( 55, 130 ), wx.wxSize( 250, 43 ) )
 control:SetFont( cert_font )
-local certinfo_4 = wx.wxTextCtrl( tab_2, wx.wxID_ANY, "", wx.wxPoint( 70, 146 ), wx.wxSize( 200, 20 ), wx.wxTE_READONLY + wx.wxSUNKEN_BORDER + wx.wxTE_CENTRE )
+local certinfo_4 = wx.wxTextCtrl( tab_2, wx.wxID_ANY, "", wx.wxPoint( 70, 146 ), wx.wxSize( 220, 20 ), wx.wxTE_READONLY + wx.wxSUNKEN_BORDER + wx.wxTE_CENTRE )
 certinfo_4:SetBackgroundColour( wx.wxColour( 225, 225, 225 ) )
 certinfo_4:SetForegroundColour( wx.wxRED )
 
-control = wx.wxStaticBox( tab_2, wx.wxID_ANY, "Valid from", wx.wxPoint( 502, 80 ), wx.wxSize( 230, 43 ) )
+control = wx.wxStaticBox( tab_2, wx.wxID_ANY, "Valid from", wx.wxPoint( 482, 80 ), wx.wxSize( 250, 43 ) )
 control:SetFont( cert_font )
-local certinfo_5 = wx.wxTextCtrl( tab_2, wx.wxID_ANY, "", wx.wxPoint( 517, 96 ), wx.wxSize( 200, 20 ), wx.wxTE_READONLY + wx.wxSUNKEN_BORDER + wx.wxTE_CENTRE )
+local certinfo_5 = wx.wxTextCtrl( tab_2, wx.wxID_ANY, "", wx.wxPoint( 497, 96 ), wx.wxSize( 220, 20 ), wx.wxTE_READONLY + wx.wxSUNKEN_BORDER + wx.wxTE_CENTRE )
 certinfo_5:SetBackgroundColour( wx.wxColour( 225, 225, 225 ) )
 certinfo_5:SetForegroundColour( wx.wxRED )
 
-control = wx.wxStaticBox( tab_2, wx.wxID_ANY, "Valid until", wx.wxPoint( 502, 130 ), wx.wxSize( 230, 43 ) )
+control = wx.wxStaticBox( tab_2, wx.wxID_ANY, "Valid until", wx.wxPoint( 482, 130 ), wx.wxSize( 250, 43 ) )
 control:SetFont( cert_font )
-local certinfo_6 = wx.wxTextCtrl( tab_2, wx.wxID_ANY, "", wx.wxPoint( 517, 146 ), wx.wxSize( 200, 20 ), wx.wxTE_READONLY + wx.wxSUNKEN_BORDER + wx.wxTE_CENTRE )
+local certinfo_6 = wx.wxTextCtrl( tab_2, wx.wxID_ANY, "", wx.wxPoint( 497, 146 ), wx.wxSize( 220, 20 ), wx.wxTE_READONLY + wx.wxSUNKEN_BORDER + wx.wxTE_CENTRE )
 certinfo_6:SetBackgroundColour( wx.wxColour( 225, 225, 225 ) )
 certinfo_6:SetForegroundColour( wx.wxRED )
 
