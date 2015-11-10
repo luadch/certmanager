@@ -3,7 +3,7 @@
     Luadch Certmanager
 
         Author:         pulsar
-        License:        GNU GPLv2
+        License:        GNU GPLv3
         Environment:    wxLua-2.8.12.3-Lua-5.1.5-MSW-Unicode
 
         v1.2: 2015-08-17
@@ -131,9 +131,9 @@ local basexx = require( "basexx" )
 -------------------------------------------------------------------------------------------------------------------------------------
 
 local app_name                 = "Luadch Certmanager"
-local app_version              = "v1.2"
+local app_version              = "v1.2.1"
 local app_copyright            = "Copyright © by pulsar"
-local app_license              = "License: GPLv2"
+local app_license              = "License: GPLv3"
 
 local app_width                = 800
 local app_height               = 637
