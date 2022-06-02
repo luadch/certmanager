@@ -6,7 +6,18 @@
         License:        GNU GPLv3
         Environment:    wxLua-2.8.12.3-Lua-5.1.5-MSW-Unicode
 
+        v1.4: 2022-06-03
+
+            - fix typo
+            - changed button colors
+            - changed some other visuals
+            - added "READY" / "BUSY" to the right side of the statusbar
+            - set current working directory as default path for make cert  / thx Sopor
+            - possibility to set the period of validity
+            - code cleanup
+
         v1.3: 2022-06-02
+
             - menubar:
                 - using icons
                 - using hotkeys
@@ -24,6 +35,7 @@
             - CN value starts with "Luadch_" now
 
         v1.2: 2015-08-17
+
             - using a random generated value for CN
             - servercert and cacert using the same CN value now
             - small gui changes
@@ -153,7 +165,7 @@ package.cpath = ";./" .. CLIB_PATH .. "?.dll" ..
 local openssl_bash_path = '.\\data\\lib\\openssl\\'
 
 --// libs
-local wx = require( "wx" )
+local wx     = require( "wx" )
 local basexx = require( "basexx" )
 
 -------------------------------------------------------------------------------------------------------------------------------------
@@ -161,11 +173,12 @@ local basexx = require( "basexx" )
 -------------------------------------------------------------------------------------------------------------------------------------
 
 local app_name         = "Luadch Certmanager"
-local app_version      = "v1.3"
+local app_version      = "1.4"
 local app_copyright    = "Copyright © by pulsar"
 local app_license      = "GNU General Public License Version 3"
 local app_env          = "Environment: " .. wxlua.wxLUA_VERSION_STRING
 local app_build        = "Built with: "..wx.wxVERSION_STRING
+local app_path         = wx.wxGetCwd() -- do not touch this
 
 local app_width        = 800
 local app_height       = 637
@@ -203,6 +216,7 @@ local id_counter
 local frame
 local panel
 local notebook
+local make_cert
 
 --// functions
 local new_id
@@ -223,10 +237,12 @@ local tab_2
 local clipBoard
 
 --// fonts
-local font_cert         = wx.wxFont( 7, wx.wxMODERN, wx.wxNORMAL, wx.wxNORMAL, false, "Verdana" )
-local font_log          = wx.wxFont( 8, wx.wxMODERN, wx.wxNORMAL, wx.wxNORMAL, false, "Lucida Console" )
-local font_about_normal = wx.wxFont( 10, wx.wxMODERN, wx.wxNORMAL, wx.wxNORMAL, false, "Verdana" )
+local font_cert         = wx.wxFont( 7,  wx.wxMODERN, wx.wxNORMAL, wx.wxNORMAL,          false, "Verdana" )
+local font_log          = wx.wxFont( 8,  wx.wxMODERN, wx.wxNORMAL, wx.wxNORMAL,          false, "Lucida Console" )
+local font_about_normal = wx.wxFont( 10, wx.wxMODERN, wx.wxNORMAL, wx.wxNORMAL,          false, "Verdana" )
 local font_about_bold   = wx.wxFont( 12, wx.wxMODERN, wx.wxNORMAL, wx.wxFONTWEIGHT_BOLD, false, "Verdana" )
+local font_statusbar    = wx.wxFont( 8,  wx.wxMODERN, wx.wxNORMAL, wx.wxNORMAL,          false, "Lucida Console" )
+local font_buttons      = wx.wxFont( 8,  wx.wxMODERN, wx.wxNORMAL, wx.wxFONTWEIGHT_BOLD, false, "Verdana" )
 
 --// for the file integrity check
 local exec = true
@@ -236,31 +252,30 @@ local exec = true
 -------------------------------------------------------------------------------------------------------------------------------------
 
 --// menu
-local msg_menu_menu = "Menu"
-local msg_menu_help = "Help"
-local msg_menu_about = "About"
+local msg_menu_menu         = "Menu"
+local msg_menu_help         = "Help"
+local msg_menu_about        = "About"
 local msg_menu_about_status = "Informations about"
-local msg_menu_logs = "Log"
-local msg_menu_logs_status = "Open Logs"
-local msg_menu_close = "Close"
+local msg_menu_logs         = "Log"
+local msg_menu_logs_status  = "Open Log"
+local msg_menu_close        = "Close"
 local msg_menu_close_status = "Close Programm"
 --// buttons
-local msg_button_ok = "OK"
-local msg_button_close = "Close"
-local msg_button_clean = "Clean"
-local msg_button_makecert = "Make cert"
+local msg_button_ok         = "OK"
+local msg_button_clean      = "Clean"
+local msg_button_makecert   = "Make cert"
 --// etc
-local msg_error_1 = "Error"
-local msg_error_2 = "Error: "
-local msg_file_not_found = "File not found: "
-local msg_closing_program = "Files that are necessary to start the program are missing.\nThe program will be closed.\n\nPlease read the log file."
-local msg_really_close = "Really close?"
-local msg_warning = "Warning"
-local msg_log_empty = "Logfile is Empty"
-local msg_log_cleaned = "Logfile was cleaned"
-local msg_ready = "ready"
-local msg_closed = "closed"
-local msg_busy = "busy"
+local msg_error_1           = "Error"
+local msg_error_2           = "Error: "
+local msg_file_not_found    = "File not found: "
+local msg_closing_program   = "Files that are necessary to start the program are missing.\nThe program will be closed.\n\nPlease read the log file."
+local msg_really_close      = "Really quit?"
+local msg_warning           = "Warning"
+local msg_log_empty         = "Logfile is Empty"
+local msg_log_cleaned       = "Logfile was cleaned"
+local msg_ready             = "ready"
+local msg_closed            = "closed"
+local msg_busy              = "busy"
 
 -------------------------------------------------------------------------------------------------------------------------------------
 --// IDS //--------------------------------------------------------------------------------------------------------------------------
@@ -381,9 +396,10 @@ show_about_window = function()
     control = wx.wxStaticBitmap( di_abo, wx.wxID_ANY, wx.wxBitmap( osi_logo ), wx.wxPoint( 200, 210 ), wx.wxSize( osi_logo:GetWidth(), osi_logo:GetHeight() ) )
 
     --// button "OK"
-    local about_btn_ok = wx.wxButton( di_abo, wx.wxID_ANY, msg_button_ok, wx.wxPoint( 0, 335 ), wx.wxSize( 60, 20 ) )
+    local about_btn_ok = wx.wxButton( di_abo, wx.wxID_ANY, msg_button_ok, wx.wxPoint( 0, 335 ), wx.wxSize( 60, 25 ) )
     about_btn_ok:SetBackgroundColour( wx.wxColour( 255, 255, 255 ) )
     about_btn_ok:Centre( wx.wxHORIZONTAL )
+    --about_btn_ok:SetFont( font_buttons )
 
     --// event - button "OK"
     about_btn_ok:Connect( wx.wxID_ANY, wx.wxEVT_COMMAND_BUTTON_CLICKED,
@@ -428,9 +444,10 @@ show_log_window = function()
     logfile_window:SetDefaultStyle( wx.wxTextAttr( wx.wxLIGHT_GREY ) )
 
     --// button "OK"
-    local log_btn_ok = wx.wxButton( di_log, wx.wxID_ANY, msg_button_ok, wx.wxPoint( 75, logwindow_height - 60 ), wx.wxSize( 60, 20 ) )
+    local log_btn_ok = wx.wxButton( di_log, wx.wxID_ANY, msg_button_ok, wx.wxPoint( 75, logwindow_height - 65 ), wx.wxSize( 60, 25 ) )
     log_btn_ok:SetBackgroundColour( wx.wxColour( 255, 255, 255 ) )
     log_btn_ok:Centre( wx.wxHORIZONTAL )
+    --log_btn_ok:SetFont( font_buttons )
     --// event - button "OK"
     log_btn_ok:Connect( wx.wxID_ANY, wx.wxEVT_COMMAND_BUTTON_CLICKED,
         function( event )
@@ -439,9 +456,10 @@ show_log_window = function()
     )
 
     --// button "Clean"
-    local log_btn_clean = wx.wxButton( di_log, wx.wxID_ANY, msg_button_clean, wx.wxPoint( 20, logwindow_height - 60 ), wx.wxSize( 60, 20 ) )
+    local log_btn_clean = wx.wxButton( di_log, wx.wxID_ANY, msg_button_clean, wx.wxPoint( 20, logwindow_height - 65 ), wx.wxSize( 60, 25 ) )
     log_btn_clean:SetBackgroundColour( wx.wxColour( 255, 255, 255 ) )
     log_btn_clean:Disable()
+    --log_btn_clean:SetFont( font_buttons )
     --// event - button "Clean"
     log_btn_clean:Connect( wx.wxID_ANY, wx.wxEVT_COMMAND_BUTTON_CLICKED,
         function( event )
@@ -585,8 +603,8 @@ end
 
 --// add text to logfile / make logfile if not exists
 log_write = function( msg )
-    local filename = file_tbl[ 9 ]
-    local f = io.open( filename, "a" )
+    wx.wxSetWorkingDirectory( app_path )
+    local f = io.open( file_tbl[ 9 ], "a" )
     f:write( timestamp() .. msg .. "\n" )
     f:close()
 end
@@ -594,8 +612,7 @@ end
 --// open or clean logfile
 log_handler = function( file, parent, mode, button )
     if mode == "read" then
-        local filename = file_tbl[ 9 ]
-        local f = io.open( filename, "r" )
+        local f = io.open( file_tbl[ 9 ], "r" )
         local content = f:read( "*a" ); f:close()
         if content == "" then
             parent:AppendText( msg_log_empty )
@@ -665,40 +682,49 @@ frame = wx.wxFrame( wx.NULL, wx.wxID_ANY, app_name .. " " .. app_version, wx.wxP
 frame:Centre( wx.wxBOTH )
 frame:SetMenuBar( menu_bar )
 frame:SetIcons( app_icons )
-frame:CreateStatusBar( 2 )
-frame:SetStatusWidths( { ( app_width / 100*70 ), ( app_width / 100*30 ) } )
 
+--// statusbar
+local statusBar = frame:CreateStatusBar( 2 )
+frame:SetStatusWidths( { ( app_width / 100 * 90 ), ( app_width / 100 * 10 ) } )
+
+local statusBar_txt_green = wx.wxStaticText( statusBar, wx.wxID_ANY, " READY ", wx.wxPoint( 730, 5 ) ); statusBar_txt_green:SetForegroundColour( wx.wxGREEN ); statusBar_txt_green:SetFont( font_statusbar )
+statusBar_txt_green:SetBackgroundColour( wx.wxColour( 0, 0, 0 ) )
+
+local statusBar_txt_red = wx.wxStaticText( statusBar, wx.wxID_ANY, " BUSY ", wx.wxPoint( 730, 5 ) ); statusBar_txt_red:SetForegroundColour( wx.wxRED ); statusBar_txt_red:SetFont( font_statusbar )
+statusBar_txt_red:SetBackgroundColour( wx.wxColour( 0, 0, 0 ) )
+
+statusBar_txt_green:Show( true ); statusBar_txt_red:Show( false )
+--statusBar_txt_red:Show( true ); statusBar_txt_green:Show( false )
+
+--// panel
 panel = wx.wxPanel( frame, wx.wxID_ANY, wx.wxPoint( 0, 0 ), wx.wxSize( app_width, app_height ) )
 panel:SetBackgroundColour( wx.wxColour( 245, 245, 245 ) )
 
+--// notebook
 notebook = wx.wxNotebook( panel, wx.wxID_ANY, wx.wxPoint( 0, 0 ), wx.wxSize( notebook_width, notebook_height ) )
 
+--// tab 1
 tab_1 = wx.wxPanel( notebook, wx.wxID_ANY )
 tabsizer_1 = wx.wxBoxSizer( wx.wxVERTICAL )
 tab_1:SetSizer( tabsizer_1 )
 tabsizer_1:SetSizeHints( tab_1 )
 tab_1:SetBackgroundColour( wx.wxColour( 245, 245, 245 ) )
 
+--// tab 2
 tab_2 = wx.wxPanel( notebook, wx.wxID_ANY )
 tabsizer_2 = wx.wxBoxSizer( wx.wxVERTICAL )
 tab_2:SetSizer( tabsizer_2 )
 tabsizer_2:SetSizeHints( tab_2 )
 tab_2:SetBackgroundColour( wx.wxColour( 245, 245, 245 ) )
 
+--// add tabs to notebook
 notebook:AddPage( tab_1, "CREATE NEW CERTIFICATE" )
 notebook:AddPage( tab_2, "GENERATE KEYPRINT FROM EXISTING CERTIFICATE" )
-
 notebook:SetImageList( notebook_image_list )
-
 notebook:SetPageImage( 0, tab_1_img )
 notebook:SetPageImage( 1, tab_2_img )
 
--------------------------------------------------------------------------------------------------------------------------------------
---// LOG WINDOW //-------------------------------------------------------------------------------------------------------------------
--------------------------------------------------------------------------------------------------------------------------------------
-
-local make_cert = wx.wxButton()
-
+--// add log wondow to panel
 local log_window = wx.wxTextCtrl( panel, wx.wxID_ANY, "", wx.wxPoint( 0, 268 ), wx.wxSize( log_width, log_height ), wx.wxTE_READONLY + wx.wxTE_MULTILINE + wx.wxTE_RICH + wx.wxSUNKEN_BORDER + wx.wxHSCROLL )
 log_window:SetBackgroundColour( wx.wxColour( 0, 0, 0 ) )
 log_window:SetFont( font_log )
@@ -707,70 +733,92 @@ log_window:SetFont( font_log )
 --// Tab 1 //------------------------------------------------------------------------------------------------------------------------
 -------------------------------------------------------------------------------------------------------------------------------------
 
+--//Subject Common Name
 control = wx.wxStaticText( tab_1, wx.wxID_ANY, "Subject Common Name:", wx.wxPoint( 70, 80 ) )
 control:SetFont( font_cert )
-local certinfo_7 = wx.wxTextCtrl( tab_1, wx.wxID_ANY, "", wx.wxPoint( 70, 96 ), wx.wxSize( 220, 20 ), wx.wxTE_READONLY + wx.wxSUNKEN_BORDER + wx.wxTE_CENTRE )
+local certinfo_7 = wx.wxTextCtrl( tab_1, wx.wxID_ANY, "", wx.wxPoint( 70, 96 ), wx.wxSize( 220, 23 ), wx.wxTE_READONLY + wx.wxSUNKEN_BORDER + wx.wxTE_CENTRE )
 certinfo_7:SetBackgroundColour( wx.wxColour( 245, 245, 245 ) )
 certinfo_7:SetForegroundColour( wx.wxRED )
-certinfo_7:Connect( wx.wxEVT_ENTER_WINDOW, function( event ) frame:SetStatusText( "Status: READONLY", 0 ) end )
+certinfo_7:SetFont( font_log )
+certinfo_7:Connect( wx.wxEVT_ENTER_WINDOW, function( event ) frame:SetStatusText( "Status: READ ONLY", 0 ) end )
 certinfo_7:Connect( wx.wxEVT_LEAVE_WINDOW, function( event ) frame:SetStatusText( "", 0 ) end )
 
+--//Issuer Common Name
 control = wx.wxStaticText( tab_1, wx.wxID_ANY, "Issuer Common Name:", wx.wxPoint( 70, 130 ) )
 control:SetFont( font_cert )
-local certinfo_1 = wx.wxTextCtrl( tab_1, wx.wxID_ANY, "", wx.wxPoint( 70, 146 ), wx.wxSize( 220, 20 ), wx.wxTE_READONLY + wx.wxSUNKEN_BORDER + wx.wxTE_CENTRE )
+local certinfo_1 = wx.wxTextCtrl( tab_1, wx.wxID_ANY, "", wx.wxPoint( 70, 146 ), wx.wxSize( 220, 23 ), wx.wxTE_READONLY + wx.wxSUNKEN_BORDER + wx.wxTE_CENTRE )
 certinfo_1:SetBackgroundColour( wx.wxColour( 245, 245, 245 ) )
 certinfo_1:SetForegroundColour( wx.wxRED )
-certinfo_1:Connect( wx.wxEVT_ENTER_WINDOW, function( event ) frame:SetStatusText( "Status: READONLY", 0 ) end )
+certinfo_1:SetFont( font_log )
+certinfo_1:Connect( wx.wxEVT_ENTER_WINDOW, function( event ) frame:SetStatusText( "Status: READ ONLY", 0 ) end )
 certinfo_1:Connect( wx.wxEVT_LEAVE_WINDOW, function( event ) frame:SetStatusText( "", 0 ) end )
 
+--//Valid from
 control = wx.wxStaticText( tab_1, wx.wxID_ANY, "Valid from:", wx.wxPoint( 497, 80 ) )
 control:SetFont( font_cert )
-local certinfo_2 = wx.wxTextCtrl( tab_1, wx.wxID_ANY, "", wx.wxPoint( 497, 96 ), wx.wxSize( 220, 20 ), wx.wxTE_READONLY + wx.wxSUNKEN_BORDER + wx.wxTE_CENTRE )
+local certinfo_2 = wx.wxTextCtrl( tab_1, wx.wxID_ANY, "", wx.wxPoint( 497, 96 ), wx.wxSize( 220, 23 ), wx.wxTE_READONLY + wx.wxSUNKEN_BORDER + wx.wxTE_CENTRE )
 certinfo_2:SetBackgroundColour( wx.wxColour( 245, 245, 245 ) )
 certinfo_2:SetForegroundColour( wx.wxRED )
-certinfo_2:Connect( wx.wxEVT_ENTER_WINDOW, function( event ) frame:SetStatusText( "Status: READONLY", 0 ) end )
+certinfo_2:SetFont( font_log )
+certinfo_2:Connect( wx.wxEVT_ENTER_WINDOW, function( event ) frame:SetStatusText( "Status: READ ONLY", 0 ) end )
 certinfo_2:Connect( wx.wxEVT_LEAVE_WINDOW, function( event ) frame:SetStatusText( "", 0 ) end )
 
+--//Valid until
 control = wx.wxStaticText( tab_1, wx.wxID_ANY, "Valid until:", wx.wxPoint( 497, 130 ) )
 control:SetFont( font_cert )
-local certinfo_3 = wx.wxTextCtrl( tab_1, wx.wxID_ANY, "", wx.wxPoint( 497, 146 ), wx.wxSize( 220, 20 ), wx.wxTE_READONLY + wx.wxSUNKEN_BORDER + wx.wxTE_CENTRE )
+local certinfo_3 = wx.wxTextCtrl( tab_1, wx.wxID_ANY, "", wx.wxPoint( 497, 146 ), wx.wxSize( 220, 23 ), wx.wxTE_READONLY + wx.wxSUNKEN_BORDER + wx.wxTE_CENTRE )
 certinfo_3:SetBackgroundColour( wx.wxColour( 245, 245, 245 ) )
 certinfo_3:SetForegroundColour( wx.wxRED )
-certinfo_3:Connect( wx.wxEVT_ENTER_WINDOW, function( event ) frame:SetStatusText( "Status: READONLY", 0 ) end )
+certinfo_3:SetFont( font_log )
+certinfo_3:Connect( wx.wxEVT_ENTER_WINDOW, function( event ) frame:SetStatusText( "Status: READ ONLY", 0 ) end )
 certinfo_3:Connect( wx.wxEVT_LEAVE_WINDOW, function( event ) frame:SetStatusText( "", 0 ) end )
 
+--// Keyprint
 control = wx.wxStaticText( tab_1, wx.wxID_ANY, "Keyprint:", wx.wxPoint( 180, 185 ) )
 control:SetFont( font_cert )
-local keyp_textctrl_1 = wx.wxTextCtrl( tab_1, wx.wxID_ANY, "", wx.wxPoint( 180, 201 ), wx.wxSize( 410, 20 ), wx.wxTE_READONLY + wx.wxSUNKEN_BORDER + wx.wxTE_CENTRE )
+local keyp_textctrl_1 = wx.wxTextCtrl( tab_1, wx.wxID_ANY, "", wx.wxPoint( 180, 201 ), wx.wxSize( 410, 23 ), wx.wxTE_READONLY + wx.wxSUNKEN_BORDER + wx.wxTE_CENTRE )
 keyp_textctrl_1:SetBackgroundColour( wx.wxColour( 245, 245, 245 ) )
 keyp_textctrl_1:SetForegroundColour( wx.wxRED )
-keyp_textctrl_1:Connect( wx.wxEVT_ENTER_WINDOW, function( event ) frame:SetStatusText( "Status: READONLY", 0 ) end )
+keyp_textctrl_1:SetFont( font_log )
+keyp_textctrl_1:Connect( wx.wxEVT_ENTER_WINDOW, function( event ) frame:SetStatusText( "Status: READ ONLY", 0 ) end )
 keyp_textctrl_1:Connect( wx.wxEVT_LEAVE_WINDOW, function( event ) frame:SetStatusText( "", 0 ) end )
 
 --// button copy to clipboard
-local btn_clip_1 = wx.wxButton( tab_1, wx.wxID_ANY, "Copy to clipboard", wx.wxPoint( 600, 200 ), wx.wxSize( 100, 22 ) )
-btn_clip_1:SetBackgroundColour( wx.wxColour( 0, 149, 221 ) )
+local btn_clip_1 = wx.wxButton( tab_1, wx.wxID_ANY, "Copy", wx.wxPoint( 600, 200 ), wx.wxSize( 40, 25 ) )
+btn_clip_1:SetBackgroundColour( wx.wxColour( 225, 225, 225 ) )
 btn_clip_1:Disable()
 
---// button - event
+--// button copy to clipboard - event
+btn_clip_1:Connect( wx.wxEVT_ENTER_WINDOW, function( event ) frame:SetStatusText( "Copy keyprint to clipboard", 0 ) end )
+btn_clip_1:Connect( wx.wxEVT_LEAVE_WINDOW, function( event ) frame:SetStatusText( "", 0 ) end )
 btn_clip_1:Connect( wx.wxID_ANY, wx.wxEVT_COMMAND_BUTTON_CLICKED,
-function( event )
-    clipBoard = wx.wxClipboard.Get()
-    if clipBoard and clipBoard:Open() then
-        clipBoard:SetData( wx.wxTextDataObject( keyp_textctrl_1:GetValue() ) )
-        clipBoard:Close()
+    function( event )
+        clipBoard = wx.wxClipboard.Get()
+        if clipBoard and clipBoard:Open() then
+            clipBoard:SetData( wx.wxTextDataObject( keyp_textctrl_1:GetValue() ) )
+            clipBoard:Close()
+        end
+        certinfo_1:SetValue( "" )
+        certinfo_2:SetValue( "" )
+        certinfo_3:SetValue( "" )
+        certinfo_7:SetValue( "" )
+        keyp_textctrl_1:SetValue( "" )
+        btn_clip_1:Disable()
     end
-    btn_clip_1:Disable()
-end )
+)
 
-control = wx.wxStaticBox( tab_1, wx.wxID_ANY, "Certificate destination path:", wx.wxPoint( 5, 15 ), wx.wxSize( 777, 48 ) )
+--// Certificate destination path (for dirpicker)
+control = wx.wxStaticBox( tab_1, wx.wxID_ANY, "Certificate destination path:", wx.wxPoint( 5, 13 ), wx.wxSize( 777, 50 ) )
 control:SetFont( font_cert )
-local dirpicker_certpath = wx.wxTextCtrl( tab_1, ID_DIRPICKER_PATH, "", wx.wxPoint( 20, 32 ), wx.wxSize( 670, 20 ), wx.wxTE_READONLY + wx.wxSUNKEN_BORDER )
+local dirpicker_certpath = wx.wxTextCtrl( tab_1, ID_DIRPICKER_PATH, "", wx.wxPoint( 20, 31 ), wx.wxSize( 670, 21 ), wx.wxTE_READONLY + wx.wxSUNKEN_BORDER )
 dirpicker_certpath:SetBackgroundColour( wx.wxColour( 245, 245, 245 ) )
 dirpicker_certpath:SetForegroundColour( wx.wxRED )
-dirpicker_certpath:Connect( wx.wxEVT_ENTER_WINDOW, function( event ) frame:SetStatusText( "Status: READONLY", 0 ) end )
+dirpicker_certpath:SetFont( font_log )
+dirpicker_certpath:SetValue( wx.wxGetCwd() )
+dirpicker_certpath:Connect( wx.wxEVT_ENTER_WINDOW, function( event ) frame:SetStatusText( "Status: READ ONLY", 0 ) end )
 dirpicker_certpath:Connect( wx.wxEVT_LEAVE_WINDOW, function( event ) frame:SetStatusText( "", 0 ) end )
 
+--// dirpicker
 local dirpicker = wx.wxDirPickerCtrl(
     tab_1,
     ID_DIRPICKER,
@@ -778,8 +826,11 @@ local dirpicker = wx.wxDirPickerCtrl(
     "Choose destination folder for cert:",
     wx.wxPoint( 698, 30 ),
     wx.wxSize( 80, 25 ),
-    wx.wxDIRP_DEFAULT_STYLE + wx.wxDIRP_DIR_MUST_EXIST - wx.wxDIRP_USE_TEXTCTRL - wx.wxDIRP_CHANGE_DIR
+    wx.wxDIRP_DEFAULT_STYLE + wx.wxDIRP_DIR_MUST_EXIST + wx.wxDIRP_USE_TEXTCTRL + wx.wxDIRP_CHANGE_DIR
 )
+--// dirpicker - event
+dirpicker:Connect( wx.wxEVT_ENTER_WINDOW, function( event ) frame:SetStatusText( "Choose destination folder for cert", 0 ) end )
+dirpicker:Connect( wx.wxEVT_LEAVE_WINDOW, function( event ) frame:SetStatusText( "", 0 ) end )
 dirpicker:Connect( ID_DIRPICKER, wx.wxEVT_COMMAND_DIRPICKER_CHANGED,
     function( event )
         local path = dirpicker:GetPath()
@@ -797,24 +848,63 @@ dirpicker:Connect( ID_DIRPICKER, wx.wxEVT_COMMAND_DIRPICKER_CHANGED,
     end
 )
 
-make_cert = wx.wxButton( tab_1, ID_MAKE_CERT_BUTTON, msg_button_makecert, wx.wxPoint( 352, 115 ), wx.wxSize( 80, 25 ) )
-make_cert:SetBackgroundColour( wx.wxColour( 0, 149, 221 ) )
-make_cert:Disable()
+--// static box
+control = wx.wxStaticBox( tab_1, wx.wxID_ANY, "", wx.wxPoint( 331, 65 ), wx.wxSize( 123, 125 ) )
+
+--// Period of validity
+control = wx.wxStaticText( tab_1, wx.wxID_ANY, "Period of validity:", wx.wxPoint( 347, 80 ) )
+control:SetFont( font_cert )
+
+--// validity_choice
+local validity_time = 3650 -- default period of validity
+local validity_choice = wx.wxChoice(
+    tab_1,
+    wx.wxID_ANY,
+    wx.wxPoint( 347, 98 ),
+    wx.wxSize( 90, 25 ),
+    { "1 Year", "2 Years", "3 Years", "4 Years", "5 Years", "6 Years", "7 Years", "8 Years", "9 Years", "10 Years" }
+)
+validity_choice:Select( 9 )
+validity_choice:SetForegroundColour( wx.wxRED )
+validity_choice:SetFont( font_cert )
+
+--// validity_choice - event
+validity_choice:Connect( wx.wxID_ANY, wx.wxEVT_COMMAND_CHOICE_SELECTED,
+    function( event )
+        local sel = validity_choice:GetCurrentSelection()
+        local str = validity_choice:GetStringSelection()
+        local val_tbl = { [0]=365,[1]=730,[2]=1095,[3]=1460,[4]=1825,[5]=2190,[6]=2555,[7]=2920,[8]=3285,[9]=3650 }
+        validity_time = val_tbl[ sel ]
+        log_broadcast( log_window, "Period of validity: " .. str .. " (" .. validity_time .. " Days)", "CYAN" )
+    end
+)
+
+--// button make_cert
+make_cert = wx.wxButton( tab_1, ID_MAKE_CERT_BUTTON, msg_button_makecert, wx.wxPoint( 347, 125 ), wx.wxSize( 90, 50 ) )
+make_cert:SetBackgroundColour( wx.wxColour( 225, 225, 225 ) )
+make_cert:SetFont( font_buttons )
+make_cert:Connect( wx.wxEVT_ENTER_WINDOW, function( event ) frame:SetStatusText( "Make cert in current directory...", 0 ) end )
+make_cert:Connect( wx.wxEVT_LEAVE_WINDOW, function( event ) frame:SetStatusText( "", 0 ) end )
+--make_cert:Disable()
+
+--// button make_cert - event
 make_cert:Connect( ID_MAKE_CERT_BUTTON, wx.wxEVT_COMMAND_BUTTON_CLICKED,
     function( event )
-        make_cert:Disable()
+        --make_cert:Disable()
         wx.wxBeginBusyCursor()
-        frame:SetStatusText( app_name .. " " .. app_version .. " " .. msg_busy, 1 )
+        --frame:SetStatusText( app_name .. " " .. app_version .. " " .. msg_busy, 1 )
+        statusBar_txt_red:Show( true ); statusBar_txt_green:Show( false )
 
         local progressDialog = wx.wxProgressDialog(
-            app_name,
+            "Generating cert, please wait...",
             "",
             18,
             wx.NULL,
             wx.wxPD_AUTO_HIDE + wx.wxPD_APP_MODAL + wx.wxPD_SMOOTH
         )
-        progressDialog:SetSize( wx.wxSize( 600, 130 ) )
+        progressDialog:SetSize( wx.wxSize( 600, 120 ) )
         progressDialog:Centre( wx.wxBOTH )
+        progressDialog:SetFocus()
 
         progressDialog:Update( 1, "Generate: 'temp_cakey.pem'" )
         log_broadcast( log_window, "Generate: 'temp_cakey.pem'", "GREEN" )
@@ -829,13 +919,13 @@ make_cert:Connect( ID_MAKE_CERT_BUTTON, wx.wxEVT_COMMAND_BUTTON_CLICKED,
 
         local dest_path = dirpicker:GetPath():gsub( "/", "\\" )
         local curr_path = wx.wxGetCwd()
-        local rnd_cn = "Luadch_" .. generate_cn( 25 )
+        local rnd_cn = "Luadch_" .. generate_cn( 20 )
 
         log_write( "Subject: " .. rnd_cn )
         log_write( "Issuer: " .. rnd_cn .. " (self signed)" )
 
         local cmd1 = 'openssl ecparam -out temp_cakey.pem -name prime256v1 -genkey'
-        local cmd2 = 'openssl req -config ' .. openssl_bash_path .. 'openssl.config -new -x509 -days 3650 -key temp_cakey.pem -out temp_cacert.pem -subj /CN=' .. rnd_cn
+        local cmd2 = 'openssl req -config ' .. openssl_bash_path .. 'openssl.config -new -x509 -days ' .. validity_time .. ' -key temp_cakey.pem -out temp_cacert.pem -subj /CN=' .. rnd_cn
         local cmd3 = 'openssl ecparam -out temp_serverkey.pem -name prime256v1 -genkey'
         local cmd4 = 'openssl req -config ' .. openssl_bash_path .. 'openssl.config -new -key temp_serverkey.pem -out temp_servercert.pem -subj /CN=' .. rnd_cn
         local cmd5 = 'openssl x509 -req -days 3650 -in temp_servercert.pem -CA temp_cacert.pem -CAkey temp_cakey.pem -set_serial 01 -out temp_servercert.pem'
@@ -1016,14 +1106,16 @@ make_cert:Connect( ID_MAKE_CERT_BUTTON, wx.wxEVT_COMMAND_BUTTON_CLICKED,
 
             progressDialog:Update( 20, "Done." )
             log_broadcast( log_window, "Done.", "WHITE" )
+            log_write( "Done." )
             wx.wxSleep( 2 )
 
             log_broadcast( log_window, app_name .. " " .. app_version .. " " .. msg_ready, "ORANGE" )
             log_write( app_name .. " " .. app_version .. " " .. msg_ready )
-            frame:SetStatusText( app_name .. " " .. app_version .. " " .. msg_ready, 1 )
-
+            --dirpicker_certpath:SetValue( wx.wxGetCwd() )
+            statusBar_txt_green:Show( true ); statusBar_txt_red:Show( false )
             progressDialog:Destroy()
             wx.wxEndBusyCursor()
+            make_cert:Disable()
 
             wx.wxMessageBox( "Done.", "INFO", wx.wxOK + wx.wxICON_INFORMATION, frame )
             btn_clip_1:Enable( true )
@@ -1038,71 +1130,92 @@ make_cert:Connect( ID_MAKE_CERT_BUTTON, wx.wxEVT_COMMAND_BUTTON_CLICKED,
 --// Tab 2 //------------------------------------------------------------------------------------------------------------------------
 -------------------------------------------------------------------------------------------------------------------------------------
 
---// controls tab 2
+--// Subject Common Name
 control = wx.wxStaticText( tab_2, wx.wxID_ANY, "Subject Common Name:", wx.wxPoint( 70, 80 ) )
 control:SetFont( font_cert )
-local certinfo_8 = wx.wxTextCtrl( tab_2, wx.wxID_ANY, "", wx.wxPoint( 70, 96 ), wx.wxSize( 220, 20 ), wx.wxTE_READONLY + wx.wxSUNKEN_BORDER + wx.wxTE_CENTRE )
+local certinfo_8 = wx.wxTextCtrl( tab_2, wx.wxID_ANY, "", wx.wxPoint( 70, 96 ), wx.wxSize( 220, 23 ), wx.wxTE_READONLY + wx.wxSUNKEN_BORDER + wx.wxTE_CENTRE )
 certinfo_8:SetBackgroundColour( wx.wxColour( 245, 245, 245 ) )
 certinfo_8:SetForegroundColour( wx.wxRED )
-certinfo_8:Connect( wx.wxEVT_ENTER_WINDOW, function( event ) frame:SetStatusText( "Status: READONLY", 0 ) end )
+certinfo_8:SetFont( font_log )
+certinfo_8:Connect( wx.wxEVT_ENTER_WINDOW, function( event ) frame:SetStatusText( "Status: READ ONLY", 0 ) end )
 certinfo_8:Connect( wx.wxEVT_LEAVE_WINDOW, function( event ) frame:SetStatusText( "", 0 ) end )
 
+--// Issuer Common Name
 control = wx.wxStaticText( tab_2, wx.wxID_ANY, "Issuer Common Name:", wx.wxPoint( 70, 130 ) )
 control:SetFont( font_cert )
-local certinfo_4 = wx.wxTextCtrl( tab_2, wx.wxID_ANY, "", wx.wxPoint( 70, 146 ), wx.wxSize( 220, 20 ), wx.wxTE_READONLY + wx.wxSUNKEN_BORDER + wx.wxTE_CENTRE )
+local certinfo_4 = wx.wxTextCtrl( tab_2, wx.wxID_ANY, "", wx.wxPoint( 70, 146 ), wx.wxSize( 220, 23 ), wx.wxTE_READONLY + wx.wxSUNKEN_BORDER + wx.wxTE_CENTRE )
 certinfo_4:SetBackgroundColour( wx.wxColour( 245, 245, 245 ) )
 certinfo_4:SetForegroundColour( wx.wxRED )
-certinfo_4:Connect( wx.wxEVT_ENTER_WINDOW, function( event ) frame:SetStatusText( "Status: READONLY", 0 ) end )
+certinfo_4:SetFont( font_log )
+certinfo_4:Connect( wx.wxEVT_ENTER_WINDOW, function( event ) frame:SetStatusText( "Status: READ ONLY", 0 ) end )
 certinfo_4:Connect( wx.wxEVT_LEAVE_WINDOW, function( event ) frame:SetStatusText( "", 0 ) end )
 
+--// Valid from
 control = wx.wxStaticText( tab_2, wx.wxID_ANY, "Valid from:", wx.wxPoint( 497, 80 ) )
 control:SetFont( font_cert )
-local certinfo_5 = wx.wxTextCtrl( tab_2, wx.wxID_ANY, "", wx.wxPoint( 497, 96 ), wx.wxSize( 220, 20 ), wx.wxTE_READONLY + wx.wxSUNKEN_BORDER + wx.wxTE_CENTRE )
+local certinfo_5 = wx.wxTextCtrl( tab_2, wx.wxID_ANY, "", wx.wxPoint( 497, 96 ), wx.wxSize( 220, 23 ), wx.wxTE_READONLY + wx.wxSUNKEN_BORDER + wx.wxTE_CENTRE )
 certinfo_5:SetBackgroundColour( wx.wxColour( 245, 245, 245 ) )
 certinfo_5:SetForegroundColour( wx.wxRED )
-certinfo_5:Connect( wx.wxEVT_ENTER_WINDOW, function( event ) frame:SetStatusText( "Status: READONLY", 0 ) end )
+certinfo_5:SetFont( font_log )
+certinfo_5:Connect( wx.wxEVT_ENTER_WINDOW, function( event ) frame:SetStatusText( "Status: READ ONLY", 0 ) end )
 certinfo_5:Connect( wx.wxEVT_LEAVE_WINDOW, function( event ) frame:SetStatusText( "", 0 ) end )
 
+--// Valid until
 control = wx.wxStaticText( tab_2, wx.wxID_ANY, "Valid until:", wx.wxPoint( 497, 130 ) )
 control:SetFont( font_cert )
-local certinfo_6 = wx.wxTextCtrl( tab_2, wx.wxID_ANY, "", wx.wxPoint( 497, 146 ), wx.wxSize( 220, 20 ), wx.wxTE_READONLY + wx.wxSUNKEN_BORDER + wx.wxTE_CENTRE )
+local certinfo_6 = wx.wxTextCtrl( tab_2, wx.wxID_ANY, "", wx.wxPoint( 497, 146 ), wx.wxSize( 220, 23 ), wx.wxTE_READONLY + wx.wxSUNKEN_BORDER + wx.wxTE_CENTRE )
 certinfo_6:SetBackgroundColour( wx.wxColour( 245, 245, 245 ) )
 certinfo_6:SetForegroundColour( wx.wxRED )
-certinfo_6:Connect( wx.wxEVT_ENTER_WINDOW, function( event ) frame:SetStatusText( "Status: READONLY", 0 ) end )
+certinfo_6:SetFont( font_log )
+certinfo_6:Connect( wx.wxEVT_ENTER_WINDOW, function( event ) frame:SetStatusText( "Status: READ ONLY", 0 ) end )
 certinfo_6:Connect( wx.wxEVT_LEAVE_WINDOW, function( event ) frame:SetStatusText( "", 0 ) end )
 
+--// Keyprint
 control = wx.wxStaticText( tab_2, wx.wxID_ANY, "Keyprint:", wx.wxPoint( 180, 185 ) )
 control:SetFont( font_cert )
-local keyp_textctrl_2 = wx.wxTextCtrl( tab_2, wx.wxID_ANY, "", wx.wxPoint( 180, 201 ), wx.wxSize( 410, 20 ), wx.wxTE_READONLY + wx.wxSUNKEN_BORDER + wx.wxTE_CENTRE )
+local keyp_textctrl_2 = wx.wxTextCtrl( tab_2, wx.wxID_ANY, "", wx.wxPoint( 180, 201 ), wx.wxSize( 410, 23 ), wx.wxTE_READONLY + wx.wxSUNKEN_BORDER + wx.wxTE_CENTRE )
 keyp_textctrl_2:SetBackgroundColour( wx.wxColour( 245, 245, 245 ) )
 keyp_textctrl_2:SetForegroundColour( wx.wxRED )
-keyp_textctrl_2:Connect( wx.wxEVT_ENTER_WINDOW, function( event ) frame:SetStatusText( "Status: READONLY", 0 ) end )
+keyp_textctrl_2:SetFont( font_log )
+keyp_textctrl_2:Connect( wx.wxEVT_ENTER_WINDOW, function( event ) frame:SetStatusText( "Status: READ ONLY", 0 ) end )
 keyp_textctrl_2:Connect( wx.wxEVT_LEAVE_WINDOW, function( event ) frame:SetStatusText( "", 0 ) end )
 
 --// button copy to clipboard
-local btn_clip_2 = wx.wxButton( tab_2, wx.wxID_ANY, "Copy to clipboard", wx.wxPoint( 600, 200 ), wx.wxSize( 100, 22 ) )
-btn_clip_2:SetBackgroundColour( wx.wxColour( 0, 149, 221 ) )
+local btn_clip_2 = wx.wxButton( tab_2, wx.wxID_ANY, "Copy", wx.wxPoint( 600, 200 ), wx.wxSize( 40, 25 ) )
+btn_clip_2:SetBackgroundColour( wx.wxColour( 225, 225, 225 ) )
+--btn_clip_2:SetFont( font_buttons )
+btn_clip_2:Connect( wx.wxEVT_ENTER_WINDOW, function( event ) frame:SetStatusText( "Copy keyprint to clipboard", 0 ) end )
+btn_clip_2:Connect( wx.wxEVT_LEAVE_WINDOW, function( event ) frame:SetStatusText( "", 0 ) end )
 btn_clip_2:Disable()
 
---// button - event
+--// button copy to clipboard - event
 btn_clip_2:Connect( wx.wxID_ANY, wx.wxEVT_COMMAND_BUTTON_CLICKED,
-function( event )
-    clipBoard = wx.wxClipboard.Get()
-    if clipBoard and clipBoard:Open() then
-        clipBoard:SetData( wx.wxTextDataObject( keyp_textctrl_2:GetValue() ) )
-        clipBoard:Close()
-    end
-    btn_clip_2:Disable()
-end )
+    function( event )
+        clipBoard = wx.wxClipboard.Get()
+        if clipBoard and clipBoard:Open() then
+            clipBoard:SetData( wx.wxTextDataObject( keyp_textctrl_2:GetValue() ) )
+            clipBoard:Close()
+        end
+        certinfo_4:SetValue( "" )
+        certinfo_5:SetValue( "" )
+        certinfo_6:SetValue( "" )
+        certinfo_8:SetValue( "" )
+        keyp_textctrl_2:SetValue( "" )
 
-control = wx.wxStaticBox( tab_2, wx.wxID_ANY, "Certificate source file:", wx.wxPoint( 5, 15 ), wx.wxSize( 777, 48 ) )
+        btn_clip_2:Disable()
+    end
+)
+--// Certificate source file
+control = wx.wxStaticBox( tab_2, wx.wxID_ANY, "Certificate source file:", wx.wxPoint( 5, 13 ), wx.wxSize( 777, 50 ) )
 control:SetFont( font_cert )
-local filepicker_certpath2 = wx.wxTextCtrl( tab_2, ID_FILEPICKER_PATH, "", wx.wxPoint( 20, 32 ), wx.wxSize( 670, 20 ), wx.wxTE_READONLY + wx.wxSUNKEN_BORDER )
+local filepicker_certpath2 = wx.wxTextCtrl( tab_2, ID_FILEPICKER_PATH, "", wx.wxPoint( 20, 31 ), wx.wxSize( 670, 21 ), wx.wxTE_READONLY + wx.wxSUNKEN_BORDER )
 filepicker_certpath2:SetBackgroundColour( wx.wxColour( 245, 245, 245 ) )
 filepicker_certpath2:SetForegroundColour( wx.wxRED )
-filepicker_certpath2:Connect( wx.wxEVT_ENTER_WINDOW, function( event ) frame:SetStatusText( "Status: READONLY", 0 ) end )
+filepicker_certpath2:SetFont( font_log )
+filepicker_certpath2:Connect( wx.wxEVT_ENTER_WINDOW, function( event ) frame:SetStatusText( "Status: READ ONLY", 0 ) end )
 filepicker_certpath2:Connect( wx.wxEVT_LEAVE_WINDOW, function( event ) frame:SetStatusText( "", 0 ) end )
 
+--// filepicker
 local filepicker_cert2 = wx.wxFilePickerCtrl(
     tab_2,
     ID_FILEPICKER,
@@ -1113,7 +1226,9 @@ local filepicker_cert2 = wx.wxFilePickerCtrl(
     wx.wxSize( 80, 25 ),
     wx.wxFLP_OPEN + wx.wxFLP_FILE_MUST_EXIST
 )
-
+--// filepicker - event
+filepicker_cert2:Connect( wx.wxEVT_ENTER_WINDOW, function( event ) frame:SetStatusText( "Choose certificate source file", 0 ) end )
+filepicker_cert2:Connect( wx.wxEVT_LEAVE_WINDOW, function( event ) frame:SetStatusText( "", 0 ) end )
 filepicker_cert2:Connect( ID_FILEPICKER, wx.wxEVT_COMMAND_FILEPICKER_CHANGED,
     function( event )
         local path = filepicker_cert2:GetPath()
@@ -1126,17 +1241,19 @@ filepicker_cert2:Connect( ID_FILEPICKER, wx.wxEVT_COMMAND_FILEPICKER_CHANGED,
         keyp_textctrl_2:SetValue( "" )
 
         local progressDialog = wx.wxProgressDialog(
-            app_name,
             "Generating keyprint, please wait...",
+            "",
             6,
             wx.NULL,
             wx.wxPD_AUTO_HIDE + wx.wxPD_APP_MODAL + wx.wxPD_SMOOTH
         )
-        progressDialog:SetSize( wx.wxSize( 600, 130 ) )
+        progressDialog:SetSize( wx.wxSize( 600, 120 ) )
         progressDialog:Centre( wx.wxBOTH )
+        progressDialog:SetFocus()
 
         wx.wxBeginBusyCursor()
-        frame:SetStatusText( app_name .. " " .. app_version .. " " .. msg_busy, 1 )
+        --frame:SetStatusText( app_name .. " " .. app_version .. " " .. msg_busy, 1 )
+        statusBar_txt_red:Show( true ); statusBar_txt_green:Show( false )
 
         log_broadcast( log_window, "Generating keyprint, please wait...", "GREEN" )
         log_write( "Generating keyprint, please wait..." )
@@ -1211,7 +1328,9 @@ filepicker_cert2:Connect( ID_FILEPICKER, wx.wxEVT_COMMAND_FILEPICKER_CHANGED,
 
         log_broadcast( log_window, app_name .. " " .. app_version .. " " .. msg_ready, "ORANGE" )
         log_write( app_name .. " " .. app_version .. " " .. msg_ready )
-        frame:SetStatusText( app_name .. " " .. app_version .. " " .. msg_ready, 1 )
+        --frame:SetStatusText( app_name .. " " .. app_version .. " " .. msg_ready, 1 )
+        statusBar_txt_green:Show( true ); statusBar_txt_red:Show( false )
+        filepicker_certpath2:SetValue( "" )
 
         progressDialog:Destroy()
         wx.wxEndBusyCursor()
@@ -1255,7 +1374,6 @@ main = function()
         )
         frame:Show( true )
         log_broadcast( log_window, app_name .. " " .. app_version .. " " .. msg_ready, "ORANGE" )
-        frame:SetStatusText( app_name .. " " .. app_version .. " " .. msg_ready, 1 )
     else
         -- kill frame
         if event then event:Skip() end
@@ -1264,19 +1382,3 @@ main = function()
 end
 
 main(); wx.wxGetApp():MainLoop()
-
--------------------------------------------------------------------------------------------------------------------------------------
---// FREQUENTLY USED //--------------------------------------------------------------------------------------------------------------
--------------------------------------------------------------------------------------------------------------------------------------
-
---[[
-
-log_write( msg )
-log_broadcast( log_window, msg, "ORANGE" ) -- WHITE/GREEN/RED/CYAN/ORANGE
-
-frame:SetStatusText( msg, 0 ) -- left
-frame:SetStatusText( msg, 1 ) -- right
-
-tool_SaveTable( settings_tbl, "settings_tbl", file_tbl[ 6 ] )
-
-]]

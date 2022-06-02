@@ -1,4 +1,15 @@
+v1.4: 2022-06-03
+
+    - fix typo
+    - changed button colors
+    - changed some other visuals
+    - added "READY" / "BUSY" to the right side of the statusbar
+    - set current working directory as default path for make cert  / thx Sopor
+    - possibility to set the period of validity
+    - code cleanup
+
 v1.3: 2022-06-02
+
     - menubar:
         - using icons
         - using hotkeys
@@ -16,6 +27,7 @@ v1.3: 2022-06-02
     - CN value starts with "Luadch_" now
 
 v1.2: 2015-08-17
+
     - using a random generated value for CN
     - servercert and cacert using the same CN value now
     - small gui changes
