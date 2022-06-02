@@ -1,3 +1,20 @@
+v1.3: 2022-06-02
+    - menubar:
+        - using icons
+        - using hotkeys
+    - using other folder structure
+        - added "cfg/constants.lua" to define default path constants
+    - added logfile
+        - added additional log window to show/clean logfile (use menubar or press "F6")
+    - changed visuals
+    - added "check_files_exists" function for integrity check on startup
+    - added "new_id" function
+    - using .png instead of .ico files and removed .dll ressource files
+    - added statusbar to show status informations about controls and menu entrys
+    - changed "about" window
+    - added "Copy to clipboard" button for keyprint
+    - CN value starts with "Luadch_" now
+
 v1.2: 2015-08-17
     - using a random generated value for CN
     - servercert and cacert using the same CN value now
