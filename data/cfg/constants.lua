@@ -1,0 +1,9 @@
+--// BASIC CONSTANTS
+CORE_PATH   = "data/"
+LUALIB_PATH = "data/lib/"
+CLIB_PATH   = "data/lib/"
+RES_PATH    = "data/res/"
+LOG_PATH    = "logs/"
+CFG_PATH    = "data/cfg/"
+--DB_PATH     = "data/db/"
+--LANG_PATH   = "data/lang/"
