@@ -6,6 +6,14 @@
         License:        GNU GPLv3
         Environment:    wxLua-2.8.12.3-Lua-5.1.5-MSW-Unicode
 
+        v1.5: 2022-06-04
+
+            - add parameters to wxMenu
+            - add separator to menubar
+            - changed wxImageList method
+                - fix problem with disappearing icons
+            - fixed some wrong element behaviours
+
         v1.4: 2022-06-03
 
             - fix typo
@@ -173,7 +181,7 @@ local basexx = require( "basexx" )
 -------------------------------------------------------------------------------------------------------------------------------------
 
 local app_name         = "Luadch Certmanager"
-local app_version      = "1.4"
+local app_version      = "1.5"
 local app_copyright    = "Copyright © by pulsar"
 local app_license      = "GNU General Public License Version 3"
 local app_env          = "Environment: " .. wxlua.wxLUA_VERSION_STRING
@@ -304,16 +312,16 @@ local bmp_about_16x16 = wx.wxArtProvider.GetBitmap( wx.wxART_INFORMATION, wx.wxA
 
 local menu_item = function( menu, id, name, status, bmp )
     local mi = wx.wxMenuItem( menu, id, name, status )
-    mi:SetBitmap( bmp )
-    bmp:delete()
+    mi:SetBitmap( bmp ); bmp:delete()
     return mi
 end
 
-local main_menu = wx.wxMenu()
+local main_menu = wx.wxMenu( "", 0 )
 main_menu:Append( menu_item( main_menu, ID_LOGS, msg_menu_logs .. "\tF6", msg_menu_logs_status, bmp_logs_16x16 ) )
+main_menu:AppendSeparator()
 main_menu:Append( menu_item( main_menu, wx.wxID_EXIT, msg_menu_close .. "\tF4", msg_menu_close_status, bmp_exit_16x16 ) )
 
-local help_menu = wx.wxMenu()
+local help_menu = wx.wxMenu( "", 0 )
 help_menu:Append( menu_item( help_menu, wx.wxID_ABOUT,  msg_menu_about .. "\tF2", msg_menu_about_status .. " " .. app_name, bmp_about_16x16 ) )
 
 local menu_bar = wx.wxMenuBar()
@@ -321,13 +329,12 @@ menu_bar:Append( main_menu, msg_menu_menu )
 menu_bar:Append( help_menu, msg_menu_help )
 
 --// icons for tabs
-local tab_1_bmp = wx.wxBitmap():ConvertToImage(); tab_1_bmp:LoadFile( file_tbl[ 6 ] )
-local tab_2_bmp = wx.wxBitmap():ConvertToImage(); tab_2_bmp:LoadFile( file_tbl[ 7 ] )
+tab_1_bmp = wx.wxBitmap():ConvertToImage(); tab_1_bmp:LoadFile( file_tbl[ 6 ] )
+tab_2_bmp = wx.wxBitmap():ConvertToImage(); tab_2_bmp:LoadFile( file_tbl[ 7 ] )
 
-local notebook_image_list = wx.wxImageList( 16, 16 )
-
-local tab_1_img = notebook_image_list:Add( wx.wxBitmap( tab_1_bmp ) )
-local tab_2_img = notebook_image_list:Add( wx.wxBitmap( tab_2_bmp ) )
+notebook_image_list = wx.wxImageList( 16, 16 )
+notebook_image_list:Add( wx.wxBitmap( tab_1_bmp ) )
+notebook_image_list:Add( wx.wxBitmap( tab_2_bmp ) )
 
 -------------------------------------------------------------------------------------------------------------------------------------
 --// DIFFERENT FUNCS //--------------------------------------------------------------------------------------------------------------
@@ -399,7 +406,6 @@ show_about_window = function()
     local about_btn_ok = wx.wxButton( di_abo, wx.wxID_ANY, msg_button_ok, wx.wxPoint( 0, 335 ), wx.wxSize( 60, 25 ) )
     about_btn_ok:SetBackgroundColour( wx.wxColour( 255, 255, 255 ) )
     about_btn_ok:Centre( wx.wxHORIZONTAL )
-    --about_btn_ok:SetFont( font_buttons )
 
     --// event - button "OK"
     about_btn_ok:Connect( wx.wxID_ANY, wx.wxEVT_COMMAND_BUTTON_CLICKED,
@@ -447,7 +453,6 @@ show_log_window = function()
     local log_btn_ok = wx.wxButton( di_log, wx.wxID_ANY, msg_button_ok, wx.wxPoint( 75, logwindow_height - 65 ), wx.wxSize( 60, 25 ) )
     log_btn_ok:SetBackgroundColour( wx.wxColour( 255, 255, 255 ) )
     log_btn_ok:Centre( wx.wxHORIZONTAL )
-    --log_btn_ok:SetFont( font_buttons )
     --// event - button "OK"
     log_btn_ok:Connect( wx.wxID_ANY, wx.wxEVT_COMMAND_BUTTON_CLICKED,
         function( event )
@@ -459,7 +464,6 @@ show_log_window = function()
     local log_btn_clean = wx.wxButton( di_log, wx.wxID_ANY, msg_button_clean, wx.wxPoint( 20, logwindow_height - 65 ), wx.wxSize( 60, 25 ) )
     log_btn_clean:SetBackgroundColour( wx.wxColour( 255, 255, 255 ) )
     log_btn_clean:Disable()
-    --log_btn_clean:SetFont( font_buttons )
     --// event - button "Clean"
     log_btn_clean:Connect( wx.wxID_ANY, wx.wxEVT_COMMAND_BUTTON_CLICKED,
         function( event )
@@ -705,24 +709,17 @@ notebook = wx.wxNotebook( panel, wx.wxID_ANY, wx.wxPoint( 0, 0 ), wx.wxSize( not
 
 --// tab 1
 tab_1 = wx.wxPanel( notebook, wx.wxID_ANY )
-tabsizer_1 = wx.wxBoxSizer( wx.wxVERTICAL )
-tab_1:SetSizer( tabsizer_1 )
-tabsizer_1:SetSizeHints( tab_1 )
 tab_1:SetBackgroundColour( wx.wxColour( 245, 245, 245 ) )
 
 --// tab 2
 tab_2 = wx.wxPanel( notebook, wx.wxID_ANY )
-tabsizer_2 = wx.wxBoxSizer( wx.wxVERTICAL )
-tab_2:SetSizer( tabsizer_2 )
-tabsizer_2:SetSizeHints( tab_2 )
 tab_2:SetBackgroundColour( wx.wxColour( 245, 245, 245 ) )
 
 --// add tabs to notebook
-notebook:AddPage( tab_1, "CREATE NEW CERTIFICATE" )
-notebook:AddPage( tab_2, "GENERATE KEYPRINT FROM EXISTING CERTIFICATE" )
 notebook:SetImageList( notebook_image_list )
-notebook:SetPageImage( 0, tab_1_img )
-notebook:SetPageImage( 1, tab_2_img )
+
+notebook:AddPage( tab_1, "CREATE NEW CERTIFICATE", true, 0 )
+notebook:AddPage( tab_2, "GENERATE KEYPRINT FROM EXISTING CERTIFICATE", false, 1 )
 
 --// add log wondow to panel
 local log_window = wx.wxTextCtrl( panel, wx.wxID_ANY, "", wx.wxPoint( 0, 268 ), wx.wxSize( log_width, log_height ), wx.wxTE_READONLY + wx.wxTE_MULTILINE + wx.wxTE_RICH + wx.wxSUNKEN_BORDER + wx.wxHSCROLL )
@@ -788,25 +785,6 @@ local btn_clip_1 = wx.wxButton( tab_1, wx.wxID_ANY, "Copy", wx.wxPoint( 600, 200
 btn_clip_1:SetBackgroundColour( wx.wxColour( 225, 225, 225 ) )
 btn_clip_1:Disable()
 
---// button copy to clipboard - event
-btn_clip_1:Connect( wx.wxEVT_ENTER_WINDOW, function( event ) frame:SetStatusText( "Copy keyprint to clipboard", 0 ) end )
-btn_clip_1:Connect( wx.wxEVT_LEAVE_WINDOW, function( event ) frame:SetStatusText( "", 0 ) end )
-btn_clip_1:Connect( wx.wxID_ANY, wx.wxEVT_COMMAND_BUTTON_CLICKED,
-    function( event )
-        clipBoard = wx.wxClipboard.Get()
-        if clipBoard and clipBoard:Open() then
-            clipBoard:SetData( wx.wxTextDataObject( keyp_textctrl_1:GetValue() ) )
-            clipBoard:Close()
-        end
-        certinfo_1:SetValue( "" )
-        certinfo_2:SetValue( "" )
-        certinfo_3:SetValue( "" )
-        certinfo_7:SetValue( "" )
-        keyp_textctrl_1:SetValue( "" )
-        btn_clip_1:Disable()
-    end
-)
-
 --// Certificate destination path (for dirpicker)
 control = wx.wxStaticBox( tab_1, wx.wxID_ANY, "Certificate destination path:", wx.wxPoint( 5, 13 ), wx.wxSize( 777, 50 ) )
 control:SetFont( font_cert )
@@ -845,6 +823,30 @@ dirpicker:Connect( ID_DIRPICKER, wx.wxEVT_COMMAND_DIRPICKER_CHANGED,
         log_broadcast( log_window, "Using destination path: '" .. path .. "'", "CYAN" )
         log_write( "Using destination path: '" .. path .. "'" )
         make_cert:Enable( true )
+        btn_clip_1:Disable()
+    end
+)
+
+--// button copy to clipboard - event
+btn_clip_1:Connect( wx.wxEVT_ENTER_WINDOW, function( event ) frame:SetStatusText( "Copy keyprint to clipboard", 0 ) end )
+btn_clip_1:Connect( wx.wxEVT_LEAVE_WINDOW, function( event ) frame:SetStatusText( "", 0 ) end )
+btn_clip_1:Connect( wx.wxID_ANY, wx.wxEVT_COMMAND_BUTTON_CLICKED,
+    function( event )
+        clipBoard = wx.wxClipboard.Get()
+        if clipBoard and clipBoard:Open() then
+            clipBoard:SetData( wx.wxTextDataObject( keyp_textctrl_1:GetValue() ) )
+            clipBoard:Close()
+        end
+        certinfo_1:SetValue( "" )
+        certinfo_2:SetValue( "" )
+        certinfo_3:SetValue( "" )
+        certinfo_7:SetValue( "" )
+        keyp_textctrl_1:SetValue( "" )
+        dirpicker_certpath:SetValue( "" )
+        btn_clip_1:Disable()
+
+        log_broadcast( log_window, "Keyprint added to ClipBoard", "WHITE" )
+        log_write( "Keyprint added to ClipBoard" )
     end
 )
 
@@ -890,9 +892,7 @@ make_cert:Connect( wx.wxEVT_LEAVE_WINDOW, function( event ) frame:SetStatusText(
 --// button make_cert - event
 make_cert:Connect( ID_MAKE_CERT_BUTTON, wx.wxEVT_COMMAND_BUTTON_CLICKED,
     function( event )
-        --make_cert:Disable()
         wx.wxBeginBusyCursor()
-        --frame:SetStatusText( app_name .. " " .. app_version .. " " .. msg_busy, 1 )
         statusBar_txt_red:Show( true ); statusBar_txt_green:Show( false )
 
         local progressDialog = wx.wxProgressDialog(
@@ -995,12 +995,12 @@ make_cert:Connect( ID_MAKE_CERT_BUTTON, wx.wxEVT_COMMAND_BUTTON_CLICKED,
             log_write( "Certificates successfully created." )
             wx.wxSleep( 2 )
 
-            dirpicker_certpath:SetValue( "" )
-
             local keyp_path = curr_path .. "\\temp_servercert.pem"
             local tbl_issuer, tbl_subject, tbl_dates, keyp_hex, keyp_base32, err = show_certinfo( keyp_path )
 
             if err then
+                dirpicker_certpath:SetValue( "" )
+
                 progressDialog:Update( 7, "Error can not parse data from file, file is not valid." )
                 log_broadcast( log_window, "Error can not parse data from file, file is not valid.", "RED" )
                 log_write( "Error can not parse data from file, file is not valid." )
@@ -1183,12 +1183,21 @@ keyp_textctrl_2:Connect( wx.wxEVT_LEAVE_WINDOW, function( event ) frame:SetStatu
 --// button copy to clipboard
 local btn_clip_2 = wx.wxButton( tab_2, wx.wxID_ANY, "Copy", wx.wxPoint( 600, 200 ), wx.wxSize( 40, 25 ) )
 btn_clip_2:SetBackgroundColour( wx.wxColour( 225, 225, 225 ) )
---btn_clip_2:SetFont( font_buttons )
-btn_clip_2:Connect( wx.wxEVT_ENTER_WINDOW, function( event ) frame:SetStatusText( "Copy keyprint to clipboard", 0 ) end )
-btn_clip_2:Connect( wx.wxEVT_LEAVE_WINDOW, function( event ) frame:SetStatusText( "", 0 ) end )
 btn_clip_2:Disable()
 
+--// Certificate source file
+control = wx.wxStaticBox( tab_2, wx.wxID_ANY, "Certificate source file:", wx.wxPoint( 5, 13 ), wx.wxSize( 777, 50 ) )
+control:SetFont( font_cert )
+local filepicker_certpath2 = wx.wxTextCtrl( tab_2, ID_FILEPICKER_PATH, "", wx.wxPoint( 20, 31 ), wx.wxSize( 670, 21 ), wx.wxTE_READONLY + wx.wxSUNKEN_BORDER )
+filepicker_certpath2:SetBackgroundColour( wx.wxColour( 245, 245, 245 ) )
+filepicker_certpath2:SetForegroundColour( wx.wxRED )
+filepicker_certpath2:SetFont( font_log )
+filepicker_certpath2:Connect( wx.wxEVT_ENTER_WINDOW, function( event ) frame:SetStatusText( "Status: READ ONLY", 0 ) end )
+filepicker_certpath2:Connect( wx.wxEVT_LEAVE_WINDOW, function( event ) frame:SetStatusText( "", 0 ) end )
+
 --// button copy to clipboard - event
+btn_clip_2:Connect( wx.wxEVT_ENTER_WINDOW, function( event ) frame:SetStatusText( "Copy keyprint to clipboard", 0 ) end )
+btn_clip_2:Connect( wx.wxEVT_LEAVE_WINDOW, function( event ) frame:SetStatusText( "", 0 ) end )
 btn_clip_2:Connect( wx.wxID_ANY, wx.wxEVT_COMMAND_BUTTON_CLICKED,
     function( event )
         clipBoard = wx.wxClipboard.Get()
@@ -1201,19 +1210,13 @@ btn_clip_2:Connect( wx.wxID_ANY, wx.wxEVT_COMMAND_BUTTON_CLICKED,
         certinfo_6:SetValue( "" )
         certinfo_8:SetValue( "" )
         keyp_textctrl_2:SetValue( "" )
-
+        filepicker_certpath2:SetValue( "" )
         btn_clip_2:Disable()
+
+        log_broadcast( log_window, "Keyprint added to ClipBoard", "WHITE" )
+        log_write( "Keyprint added to ClipBoard" )
     end
 )
---// Certificate source file
-control = wx.wxStaticBox( tab_2, wx.wxID_ANY, "Certificate source file:", wx.wxPoint( 5, 13 ), wx.wxSize( 777, 50 ) )
-control:SetFont( font_cert )
-local filepicker_certpath2 = wx.wxTextCtrl( tab_2, ID_FILEPICKER_PATH, "", wx.wxPoint( 20, 31 ), wx.wxSize( 670, 21 ), wx.wxTE_READONLY + wx.wxSUNKEN_BORDER )
-filepicker_certpath2:SetBackgroundColour( wx.wxColour( 245, 245, 245 ) )
-filepicker_certpath2:SetForegroundColour( wx.wxRED )
-filepicker_certpath2:SetFont( font_log )
-filepicker_certpath2:Connect( wx.wxEVT_ENTER_WINDOW, function( event ) frame:SetStatusText( "Status: READ ONLY", 0 ) end )
-filepicker_certpath2:Connect( wx.wxEVT_LEAVE_WINDOW, function( event ) frame:SetStatusText( "", 0 ) end )
 
 --// filepicker
 local filepicker_cert2 = wx.wxFilePickerCtrl(
@@ -1224,7 +1227,8 @@ local filepicker_cert2 = wx.wxFilePickerCtrl(
     "servercert.pem", --wx.wxFileSelectorDefaultWildcardStr,
     wx.wxPoint( 698, 30 ),
     wx.wxSize( 80, 25 ),
-    wx.wxFLP_OPEN + wx.wxFLP_FILE_MUST_EXIST
+    wx.wxFLP_DEFAULT_STYLE - wx.wxFLP_USE_TEXTCTRL,--wx.wxFLP_OPEN + wx.wxFLP_FILE_MUST_EXIST
+    wx.wxDefaultValidator, "test"
 )
 --// filepicker - event
 filepicker_cert2:Connect( wx.wxEVT_ENTER_WINDOW, function( event ) frame:SetStatusText( "Choose certificate source file", 0 ) end )
@@ -1252,7 +1256,6 @@ filepicker_cert2:Connect( ID_FILEPICKER, wx.wxEVT_COMMAND_FILEPICKER_CHANGED,
         progressDialog:SetFocus()
 
         wx.wxBeginBusyCursor()
-        --frame:SetStatusText( app_name .. " " .. app_version .. " " .. msg_busy, 1 )
         statusBar_txt_red:Show( true ); statusBar_txt_green:Show( false )
 
         log_broadcast( log_window, "Generating keyprint, please wait...", "GREEN" )
@@ -1266,6 +1269,8 @@ filepicker_cert2:Connect( ID_FILEPICKER, wx.wxEVT_COMMAND_FILEPICKER_CHANGED,
         wx.wxSleep( 2 )
 
         if err then
+            filepicker_certpath2:SetValue( "" )
+
             log_broadcast( log_window, "Error can not parse data from file, file is not valid.", "RED" )
             log_write( "Error can not parse data from file, file is not valid." )
             progressDialog:Update( 3, "Error can not parse data from file, file is not valid." )
@@ -1273,16 +1278,14 @@ filepicker_cert2:Connect( ID_FILEPICKER, wx.wxEVT_COMMAND_FILEPICKER_CHANGED,
 
             progressDialog:Destroy()
 
-            filepicker_certpath2:SetValue( "" )
-
             wx.wxMessageBox( "Error can not parse data from file, file is not valid.", "Parsing fingerprint...", wx.wxOK + wx.wxICON_INFORMATION, frame )
         else
+            filepicker_certpath2:SetValue( path )
+
             log_broadcast( log_window, "Using file: '" .. path .. "'", "CYAN" )
             log_write( "Using file: '" .. path .. "'" )
             progressDialog:Update( 3, "Using file: '" .. path .. "" )
             wx.wxSleep( 2 )
-
-            filepicker_certpath2:SetValue( path )
 
             log_broadcast( log_window, "Parsing fingerprint...", "GREEN" )
             log_write( "Parsing fingerprint..." )
@@ -1328,9 +1331,7 @@ filepicker_cert2:Connect( ID_FILEPICKER, wx.wxEVT_COMMAND_FILEPICKER_CHANGED,
 
         log_broadcast( log_window, app_name .. " " .. app_version .. " " .. msg_ready, "ORANGE" )
         log_write( app_name .. " " .. app_version .. " " .. msg_ready )
-        --frame:SetStatusText( app_name .. " " .. app_version .. " " .. msg_ready, 1 )
         statusBar_txt_green:Show( true ); statusBar_txt_red:Show( false )
-        filepicker_certpath2:SetValue( "" )
 
         progressDialog:Destroy()
         wx.wxEndBusyCursor()
@@ -1354,6 +1355,7 @@ main = function()
                 if result == wx.wxID_YES then
                     if event then event:Skip() end
                     if frame then frame:Destroy() end
+                    notebook_image_list:delete()
                 end
             end
         )

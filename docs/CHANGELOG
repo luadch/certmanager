@@ -1,12 +1,10 @@
-v1.4: 2022-06-03
+v1.5: 2022-06-04
 
-    - fix typo
-    - changed button colors
-    - changed some other visuals
-    - added "READY" / "BUSY" to the right side of the statusbar
-    - set current working directory as default path for make cert  / thx Sopor
-    - possibility to set the period of validity
-    - code cleanup
+    - add parameters to wxMenu
+    - add separator to menubar
+    - changed wxImageList method
+        - fix problem with disappearing icons
+    - fixed some wrong element behaviours
 
 v1.3: 2022-06-02
 
